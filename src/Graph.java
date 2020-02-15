@@ -1,14 +1,13 @@
+import garciadelcastillo.dashedlines.DashedLines;
 import processing.core.PApplet;
-import processing.core.PConstants;
 import processing.core.PVector;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.lang.Math.PI;
-
 public class Graph {
     PApplet sketch;
+    DashedLines dash;
 
     List<Vertex> vertices;
 
@@ -17,45 +16,57 @@ public class Graph {
     public Graph(PApplet sketch) {
         this.sketch = sketch;
 
+        dash = new DashedLines(sketch);
+
         vertices = new ArrayList<>();
         edges = new ArrayList<>();
 
-        MazeToGraph.GenerateGraph(this, 7);
+        MazeToGraph.GenerateGraph(this, dash, 4);
 
         TrimEdges();
+        TrimNeighbors();
     }
 
-    public void updateDimensions() {
-        float maxX = Float.MIN_VALUE;
-        float minX = Float.MAX_VALUE;
+    public void curveEdges() {
+        boolean madeCurve = true;
 
-        float maxY = Float.MIN_VALUE;
-        float minY = Float.MAX_VALUE;
+        while (madeCurve) {
 
+            madeCurve = false;
+
+            for (Vertex vertex : vertices) {
+
+                if (vertex.neighborCount() == 2) {
+
+                    if (vertex.getEdge(0).getClass() == CurvedEdge.class) {
+                        if (vertex.getNeighbor(0) == vertex.getEdge(0).v1) {
+                            Edge curvedEdge = new CurvedEdge(vertex.getEdge(0), vertex, vertex.getEdge(0), sketch, dash);
+                        }
+                    }
+
+                    madeCurve = true;
+                    Edge curvedEdge = new CurvedEdge(vertex, sketch, dash);
+
+                    vertices.remove(vertex);
+
+                    for (Edge edge : vertex.edges) {
+                        edges.remove(edge);
+                    }
+
+                    edges.add(curvedEdge);
+
+                    break;
+                }
+
+            }
+
+        }
+    }
+
+    public void TrimNeighbors() {
         for (Vertex vertex : vertices) {
-            if (vertex.pos.x > maxX) {
-                maxX = vertex.pos.x;
-            }
-            if (vertex.pos.x < minX) {
-                minX = vertex.pos.x;
-            }
-            if (vertex.pos.y > maxY) {
-                maxY = vertex.pos.y;
-            }
-            if (vertex.pos.y < minY) {
-                minY = vertex.pos.y;
-            }
+            vertex.TrimNeighbors();
         }
-
-        float w;
-
-        if (maxX - minX > maxY - minY) {
-            w = maxY - minY + 50;
-        } else {
-            w = maxX - minX + 50;
-        }
-
-        sketch.scale(sketch.width / w);
     }
 
     public void TrimEdges() {
@@ -82,35 +93,19 @@ public class Graph {
         edges = newEdges;
     }
 
-    public void GenerateRandom(int vertexCount, float graphDensity) {
-        for (int i = 0; i < vertexCount; i++) {
-            vertices.add(new Vertex(sketch));
-        }
+    public void makeNeighbors(Vertex a, Vertex b) {
+        a.addNeighbor(b);
+        b.addNeighbor(a);
 
-        for (Vertex vertex : vertices) {
-            for (Vertex vertex1 : vertices) {
-                if (sketch.random(1) < graphDensity) {
-                    makeNeighbors(vertex, vertex1);
-                }
-            }
-        }
+        Edge newEdge = new Edge(a, b, sketch, dash);
+
+        edges.add(newEdge);
+        a.addEdge(newEdge);
+        b.addEdge(newEdge);
     }
 
-    public void GenerateExample() {
-        Vertex a = new Vertex(sketch);
-        Vertex b = new Vertex(sketch);
-        Vertex c = new Vertex(sketch);
-        Vertex d = new Vertex(sketch);
-
-        makeNeighbors(a, b);
-        makeNeighbors(c, a);
-        makeNeighbors(b, c);
-        makeNeighbors(d, c);
-
-        vertices.add(b);
-        vertices.add(d);
-        vertices.add(c);
-        vertices.add(a);
+    public void addVertex(Vertex vertex) {
+        vertices.add(vertex);
     }
 
     public void calculateForces() {
@@ -133,77 +128,16 @@ public class Graph {
         }
     }
 
-    public void show() {
+    public void render() {
         sketch.translate(sketch.width / 2f, sketch.height / 2f);
 
-        sketch.stroke(255, 0, 0);
-        sketch.strokeWeight(4);
-
-        for (Edge edge : edges) {
-            dashedLine(edge.v1.pos, edge.v2.pos);
-        }
 
         for (Vertex vertex : vertices) {
             vertex.show();
         }
-    }
 
-    public void makeNeighbors(Vertex a, Vertex b) {
-        a.addNeighbor(b);
-        b.addNeighbor(a);
-
-        edges.add(new Edge(a, b, sketch));
-    }
-
-    public void addVertex(Vertex vertex) {
-        vertices.add(vertex);
-    }
-
-    @Override
-    public String toString() {
-        return "Graph{" +
-                "sketch=" + sketch +
-                ", vertices=" + vertices +
-                '}';
-    }
-
-    public void renderRoads() {
-        sketch.translate(sketch.width / 2f, sketch.height / 2f);
-        sketch.stroke(150, 150, 150);
-        sketch.strokeWeight(2);
-        sketch.fill(70, 70, 70);
-        for (Edge edge : edges) {
-            Road(edge.v1.pos, edge.v2.pos);
+        for (Vertex vertex : vertices) {
+            vertex.intersection();
         }
-    }
-
-    public void Road(PVector start, PVector end) {
-        PVector r = PVector.sub(end, start).rotate((float) (PI / 2f)).setMag(10);
-
-        PVector p1 = PVector.add(start, r);
-        PVector p2 = PVector.sub(start, r);
-        PVector p3 = PVector.sub(end, r);
-        PVector p4 = PVector.add(end, r);
-
-        sketch.quad(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y);
-        dashedLine(start, end);
-    }
-
-    public void dashedLine(PVector start, PVector end) {
-        PVector dir = PVector.sub(end, start).setMag(1f);
-        float length = PVector.dist(start, end);
-
-        float dashLength = 15;
-        float gapLength = 7;
-
-        sketch.pushStyle();
-        sketch.stroke(240, 240, 0);
-        for (int i = 0; i < length / (dashLength + gapLength); i++) {
-            PVector s = new PVector(start.x + dir.x * (dashLength + gapLength) * i,
-                                    start.y + dir.y * (dashLength + gapLength) * i);
-            PVector e = new PVector(s.x + dir.x * dashLength, s.y + dir.y * dashLength);
-            sketch.line(s.x, s.y, e.x, e.y);
-        }
-        sketch.popStyle();
     }
 }

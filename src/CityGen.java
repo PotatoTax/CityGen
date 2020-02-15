@@ -4,7 +4,7 @@ import processing.event.KeyEvent;
 public class CityGen extends PApplet {
     Graph graph;
 
-    boolean freezeAnimation;
+    boolean evaluated;
 
     public void settings() {
         size(1000, 1000);
@@ -13,37 +13,34 @@ public class CityGen extends PApplet {
     public void setup() {
         graph = new Graph(this);
 
-        freezeAnimation = false;
+        evaluated = false;
+
     }
 
     public void draw() {
-        if (freezeAnimation) {
-            background(51);
-
-            graph.calculateForces();
-
-            graph.update();
-            //graph.updateDimensions();
-
-            graph.show();
-        }
-        else {
+        if (!evaluated) {
             background(0, 187, 0);
-            graph.renderRoads();
 
+            for (int i = 0; i < 1000; i++) {
+                graph.calculateForces();
+
+                graph.update();
+            }
+
+            graph.curveEdges();
+
+            evaluated = true;
         }
+
+        graph.render();
     }
 
     public void keyPressed(KeyEvent event) {
-        if (event.getKey() == 'p') {
-            if (freezeAnimation) {
-                freezeAnimation = false;
-            } else {
-                freezeAnimation = true;
-            }
+        if (event.getKey() == ' ') {
+            graph = new Graph(this);
+            evaluated = false;
         }
     }
-
 
     public static void main(String[] args) {
         String[] pArgs = new String[] {"CityGen"};

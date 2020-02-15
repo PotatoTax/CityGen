@@ -1,6 +1,10 @@
+import garciadelcastillo.dashedlines.DashedLines;
+
+import javax.swing.plaf.basic.BasicListUI;
+
 public class MazeToGraph {
 
-    public static void GenerateGraph(Graph graph, int mazeSize) {
+    public static void GenerateGraph(Graph graph, DashedLines dash, int mazeSize) {
         Maze maze = new Maze(mazeSize);
 
         for (Cell[] cells : maze.cells) {
@@ -13,7 +17,7 @@ public class MazeToGraph {
 
         for (int i = 0; i < mazeSize; i++) {
             for (int j = 0; j < mazeSize; j++) {
-                Vertex v = new Vertex(graph.sketch, j*20, i*20);
+                Vertex v = new Vertex(graph.sketch, j*20, i*20, dash);
                 vArray[i][j] = v;
                 graph.addVertex(v);
             }
